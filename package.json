@@ -1,0 +1,25 @@
+{
+  "name": "synchronize",
+  "version": "1.0.0",
+  "description": "Synchronize and anonymize app",
+  "main": "index.js",
+  "scripts": {
+    "sync": "ts-node ./sync.ts",
+    "app": "ts-node ./app.ts",
+    "format": "npx prettier --write ./**/*.ts"
+  },
+  "author": "Aibek Abdykasymov",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.2.3",
+    "prettier": "2.8.8",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.0.4"
+  },
+  "dependencies": {
+    "@faker-js/faker": "^8.0.1",
+    "dotenv": "^16.0.3",
+    "mongodb": "^5.5.0",
+    "randexp": "^0.5.3"
+  }
+}
