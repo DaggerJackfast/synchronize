@@ -44,4 +44,4 @@ yarn.lock
 .Trashes
 
 # Tmuxinator
-# .tmuxinator.yml
+.tmuxinator.yml
