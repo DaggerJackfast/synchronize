@@ -1,9 +1,4 @@
-import { ChangeStream, ChangeStreamInsertDocument, ChangeStreamUpdateDocument, Document, ObjectId } from "mongodb";
-export type CollectionChangeWatchStream<T extends Document = Document> = ChangeStream<
-  T,
-  ChangeStreamInsertDocument<T> | ChangeStreamUpdateDocument<T>
->;
-export type ChangeStreamEvent<T extends Document = Document> = ChangeStreamInsertDocument<T> | ChangeStreamUpdateDocument<T>;
+import { ChangeStream, ChangeStreamInsertDocument, ChangeStreamUpdateDocument, Document, ObjectId } from 'mongodb';
 
 export interface IAddress {
   line1: string;
@@ -25,3 +20,10 @@ export interface ICustomer {
 export interface ICustomerDocument extends ICustomer {
   _id: ObjectId | string;
 }
+
+export type CustomersChangeWatchStream = ChangeStream<
+  ICustomerDocument,
+  ChangeStreamInsertDocument<ICustomerDocument> | ChangeStreamUpdateDocument<ICustomerDocument>
+>;
+
+export type CustomerChangeStreamEvent = ChangeStreamInsertDocument<ICustomerDocument> | ChangeStreamUpdateDocument<ICustomerDocument>;

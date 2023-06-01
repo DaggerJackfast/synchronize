@@ -1,18 +1,11 @@
 import { randexp } from 'randexp';
 import * as dotenv from 'dotenv';
 import { Collection, MongoClient, ObjectId, Document, FindCursor, UpdateOneModel } from 'mongodb';
-import { ChangeStreamEvent, CollectionChangeWatchStream, ICustomer, ICustomerDocument } from './types';
+import { CustomerChangeStreamEvent, CustomersChangeWatchStream, ICustomer, ICustomerDocument } from './types';
 
 const STRING_RULE_REGEX = /[a-zA-Z\d]{8}/;
 const generateRandomString = (): string => {
   return randexp(STRING_RULE_REGEX);
-};
-
-const deepCopy = <T>(obj: T): T => {
-  if (obj === null || obj === undefined) {
-    throw new Error('Object can not be null or undefined when making deep copy');
-  }
-  return JSON.parse(JSON.stringify(obj));
 };
 
 const anonymize = (customer: ICustomer): ICustomer => {
@@ -108,11 +101,11 @@ class CustomersAnonymizer {
           },
         },
       ];
-      const changeStream: CollectionChangeWatchStream<ICustomerDocument> = this.customersCollection.watch(pipeline, {
+      const changeStream: CustomersChangeWatchStream = this.customersCollection.watch(pipeline, {
         fullDocument: 'updateLookup',
       });
 
-      changeStream.on('change', (event: ChangeStreamEvent<ICustomerDocument>): void => {
+      changeStream.on('change', (event: CustomerChangeStreamEvent): void => {
         if (!event.fullDocument) {
           console.log('document does not exists');
           return;
@@ -120,8 +113,9 @@ class CustomersAnonymizer {
         const document: ICustomerDocument = event.fullDocument;
         this.customerDocuments.push(document);
         if (this.customerDocuments.length >= this.batchCount) {
-          this.save(deepCopy<ICustomerDocument[]>(this.customerDocuments));
+          const customers = this.customerDocuments;
           this.customerDocuments = [];
+          this.save(customers);
         }
       });
     } catch (error: unknown) {
@@ -133,7 +127,8 @@ class CustomersAnonymizer {
 
   private startIntervalSave(): void {
     this.timer = setInterval(() => {
-      this.save(deepCopy<ICustomerDocument[]>(this.customerDocuments));
+      const customers = this.customerDocuments;
+      this.save(customers);
       this.customerDocuments = [];
     }, this.saveIntervalTime);
   }
