@@ -30,3 +30,10 @@ npm run sync -- --full-reindex
 # or
 npx ts-node sync.ts --full-reindex
 ```
+
+### Run formatting code
+```bash
+npm run format
+# or
+npx prettier --write ./**/*.ts
+```
