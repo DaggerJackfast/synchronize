@@ -1,4 +1,4 @@
-import { ChangeStream, ChangeStreamInsertDocument, ChangeStreamUpdateDocument, Document, ObjectId } from 'mongodb';
+import { ChangeStream, ChangeStreamInsertDocument, ChangeStreamUpdateDocument, ObjectId } from 'mongodb';
 
 export interface IAddress {
   line1: string;
