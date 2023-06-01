@@ -1,6 +1,7 @@
 ### Synchronize and anonymize application
 
-Start guide:
+#### Start guide:
+Node.js version is `v18.15.0`, can see version in `.nvmrc` file. \
 Install dependencies
 ```bash
 npm install
