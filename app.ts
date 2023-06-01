@@ -1,7 +1,7 @@
-import { Collection, MongoClient } from 'mongodb';
-import * as dotenv from 'dotenv';
-import { faker } from '@faker-js/faker';
-import { ICustomer } from './types';
+import { Collection, MongoClient } from "mongodb";
+import * as dotenv from "dotenv";
+import { faker } from "@faker-js/faker";
+import { ICustomer } from "./types";
 
 const getRandomElement = <T>(list: T[]): T => {
   const index = Math.floor(Math.random() * list.length);
@@ -18,7 +18,7 @@ const getRandomNumberInRange = (min: number, max: number): number => {
 const connect = async (uri: string): Promise<MongoClient> => {
   const client = new MongoClient(uri);
   await client.connect();
-  console.log('mongo is connected!');
+  console.log("mongo is connected!");
   return client;
 };
 
@@ -31,7 +31,9 @@ class CustomersGenerator {
   constructor(client: MongoClient) {
     this.client = client;
     this.client = client;
-    this.customersCollection = this.client.db('synchronize').collection<ICustomer>('customers');
+    this.customersCollection = this.client
+      .db("synchronize")
+      .collection<ICustomer>("customers");
   }
 
   public start(): void {
@@ -61,7 +63,7 @@ class CustomersGenerator {
     const customers = this.generateCustomers(customersCount);
 
     await this.customersCollection.insertMany(customers);
-    console.log('saveCount: ', customersCount);
+    console.log("saveCount: ", customersCount);
   }
 
   private generateCustomers(count: number): ICustomer[] {
@@ -74,7 +76,9 @@ class CustomersGenerator {
   }
 
   private generateCustomer(): ICustomer {
-    const sex = getRandomElement<string>(['male', 'female']) as 'male' | 'female';
+    const sex = getRandomElement<string>(["male", "female"]) as
+      | "male"
+      | "female";
     const firstName = faker.person.firstName(sex);
     const lastName = faker.person.lastName(sex);
     return {
@@ -87,7 +91,7 @@ class CustomersGenerator {
         postcode: faker.location.zipCode(),
         city: faker.location.city(),
         state: faker.location.state({ abbreviated: true }),
-        country: faker.location.countryCode('alpha-2'),
+        country: faker.location.countryCode("alpha-2"),
       },
       createdAt: new Date(),
     };
@@ -98,12 +102,15 @@ const main = async (): Promise<void> => {
   dotenv.config();
   const uri = <string>process.env.DB_URI;
   const client = await connect(uri);
-  const generator = new CustomersGenerator(client);
-  generator.start();
+  try {
+    const generator = new CustomersGenerator(client);
+    generator.start();
+  } catch (error: unknown) {
+    console.error(error);
+    await client.close();
+  }
 
-  console.log('after connect');
+  console.log("after connect");
 };
 
-main()
-  .then()
-  .catch(error => console.log('error: ', error));
+main().then();

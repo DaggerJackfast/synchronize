@@ -1,4 +1,9 @@
-import { ChangeStream, ChangeStreamInsertDocument, ChangeStreamUpdateDocument, ObjectId } from 'mongodb';
+import {
+  ChangeStream,
+  ChangeStreamInsertDocument,
+  ChangeStreamUpdateDocument,
+  ObjectId,
+} from "mongodb";
 
 export interface IAddress {
   line1: string;
@@ -23,7 +28,10 @@ export interface ICustomerDocument extends ICustomer {
 
 export type CustomersChangeWatchStream = ChangeStream<
   ICustomerDocument,
-  ChangeStreamInsertDocument<ICustomerDocument> | ChangeStreamUpdateDocument<ICustomerDocument>
+  | ChangeStreamInsertDocument<ICustomerDocument>
+  | ChangeStreamUpdateDocument<ICustomerDocument>
 >;
 
-export type CustomerChangeStreamEvent = ChangeStreamInsertDocument<ICustomerDocument> | ChangeStreamUpdateDocument<ICustomerDocument>;
+export type CustomerChangeStreamEvent =
+  | ChangeStreamInsertDocument<ICustomerDocument>
+  | ChangeStreamUpdateDocument<ICustomerDocument>;

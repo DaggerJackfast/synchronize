@@ -1,7 +1,19 @@
-import { randexp } from 'randexp';
-import * as dotenv from 'dotenv';
-import { Collection, MongoClient, ObjectId, Document, FindCursor, UpdateOneModel } from 'mongodb';
-import { CustomerChangeStreamEvent, CustomersChangeWatchStream, ICustomer, ICustomerDocument } from './types';
+import { randexp } from "randexp";
+import * as dotenv from "dotenv";
+import {
+  Collection,
+  MongoClient,
+  ObjectId,
+  Document,
+  FindCursor,
+  UpdateOneModel,
+} from "mongodb";
+import {
+  CustomerChangeStreamEvent,
+  CustomersChangeWatchStream,
+  ICustomer,
+  ICustomerDocument,
+} from "./types";
 
 const STRING_RULE_REGEX = /[a-zA-Z\d]{8}/;
 const generateRandomString = (): string => {
@@ -26,8 +38,8 @@ const anonymize = (customer: ICustomer): ICustomer => {
 };
 
 const anonymizeEmail = (email: string): string => {
-  const domain = email.split('@').pop();
-  return [generateRandomString(), domain].join('@');
+  const domain = email.split("@").pop();
+  return [generateRandomString(), domain].join("@");
 };
 
 type UpdateOneOperation<T extends Document = Document> = {
@@ -46,8 +58,12 @@ class CustomersAnonymizer {
 
   constructor(client: MongoClient) {
     this.client = client;
-    this.anonymisedCollection = this.client.db('synchronize').collection<ICustomerDocument>('customers_anonymised');
-    this.customersCollection = this.client.db('synchronize').collection<ICustomerDocument>('customers');
+    this.anonymisedCollection = this.client
+      .db("synchronize")
+      .collection<ICustomerDocument>("customers_anonymised");
+    this.customersCollection = this.client
+      .db("synchronize")
+      .collection<ICustomerDocument>("customers");
   }
 
   public async start(fullReindex?: boolean): Promise<void> {
@@ -60,23 +76,31 @@ class CustomersAnonymizer {
   }
 
   private async fullReindex(): Promise<void> {
-    const customerCursor: FindCursor<ICustomerDocument> = await this.customersCollection.find();
+    const customerCursor: FindCursor<ICustomerDocument> =
+      await this.customersCollection.find();
     await this.saveWithCursor(customerCursor);
   }
 
   private async savePreviousCustomers(): Promise<void> {
     const last = await this.anonymisedCollection
-      .find({}, { sort: [['createdAt', -1]], projection: { createdAt: 1 }, limit: 1 })
+      .find(
+        {},
+        { sort: [["createdAt", -1]], projection: { createdAt: 1 }, limit: 1 }
+      )
       .next();
     if (!last) {
       return;
     }
     const { createdAt } = last;
-    const customerCursor = await this.customersCollection.find({ createdAt: { $gte: createdAt } });
+    const customerCursor = await this.customersCollection.find({
+      createdAt: { $gte: createdAt },
+    });
     await this.saveWithCursor(customerCursor);
   }
 
-  private async saveWithCursor(customerCursor: FindCursor<ICustomerDocument>): Promise<void> {
+  private async saveWithCursor(
+    customerCursor: FindCursor<ICustomerDocument>
+  ): Promise<void> {
     let updateDocuments: ICustomerDocument[] = [];
     while (await customerCursor.hasNext()) {
       const document = (await customerCursor.next()) as ICustomerDocument;
@@ -97,17 +121,18 @@ class CustomersAnonymizer {
       const pipeline = [
         {
           $match: {
-            operationType: { $in: ['update', 'insert'] },
+            operationType: { $in: ["update", "insert"] },
           },
         },
       ];
-      const changeStream: CustomersChangeWatchStream = this.customersCollection.watch(pipeline, {
-        fullDocument: 'updateLookup',
-      });
+      const changeStream: CustomersChangeWatchStream =
+        this.customersCollection.watch(pipeline, {
+          fullDocument: "updateLookup",
+        });
 
-      changeStream.on('change', (event: CustomerChangeStreamEvent): void => {
+      changeStream.on("change", (event: CustomerChangeStreamEvent): void => {
         if (!event.fullDocument) {
-          console.log('document does not exists');
+          console.log("document does not exists");
           return;
         }
         const document: ICustomerDocument = event.fullDocument;
@@ -159,21 +184,25 @@ class CustomersAnonymizer {
 
   public async save(documents: ICustomerDocument[]): Promise<void> {
     if (documents.length > 0) {
-      console.log('save count: ', documents.length);
-      const bulkOperations: UpdateOneOperation<ICustomerDocument>[] = documents.map(document => {
-        const customer = this.createCustomer(document);
-        const anonymized = anonymize(customer);
-        const bulkDocument: ICustomerDocument = { ...anonymized, _id: new ObjectId(document._id) };
-        return {
-          updateOne: {
-            filter: { _id: bulkDocument._id },
-            update: {
-              $set: { ...bulkDocument },
+      console.log("save count: ", documents.length);
+      const bulkOperations: UpdateOneOperation<ICustomerDocument>[] =
+        documents.map((document) => {
+          const customer = this.createCustomer(document);
+          const anonymized = anonymize(customer);
+          const bulkDocument: ICustomerDocument = {
+            ...anonymized,
+            _id: new ObjectId(document._id),
+          };
+          return {
+            updateOne: {
+              filter: { _id: bulkDocument._id },
+              update: {
+                $set: { ...bulkDocument },
+              },
+              upsert: true,
             },
-            upsert: true,
-          },
-        };
-      });
+          };
+        });
       await this.anonymisedCollection.bulkWrite(bulkOperations);
     }
   }
@@ -186,19 +215,17 @@ const connect = async (uri: string): Promise<MongoClient> => {
 };
 
 const main = async (): Promise<void> => {
-  let client: MongoClient;
+  const fullReindex = process.argv.includes("--full-reindex");
+  dotenv.config();
+  const uri = <string>process.env.DB_URI;
+  const client = await connect(uri);
   try {
-    const fullReindex = process.argv.includes('--full-reindex');
-    dotenv.config();
-    const uri = <string>process.env.DB_URI;
-    client = await connect(uri);
     const watcher = new CustomersAnonymizer(client);
     await watcher.start(fullReindex);
-
-    console.log('after start watching');
+    console.log("after start watching");
   } catch (error) {
     console.error(error);
-    throw error;
+    if (client) await client.close(true);
   }
 };
 main().then();
