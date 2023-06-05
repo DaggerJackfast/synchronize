@@ -1,4 +1,4 @@
-import { randexp } from "randexp";
+import * as hash from "custom-hash";
 import * as dotenv from "dotenv";
 import {
   Collection,
@@ -15,20 +15,37 @@ import {
   ICustomerDocument,
 } from "./types";
 
-const STRING_RULE_REGEX = /[a-zA-Z\d]{8}/;
-const generateRandomString = (): string => {
-  return randexp(STRING_RULE_REGEX);
+const genCharArray = (firstSymbol: string, lastSymbol: string): string[] => {
+  const firstCode: number = firstSymbol.charCodeAt(0);
+  const lastCode: number = lastSymbol.charCodeAt(0);
+  const symbols: string[] = [];
+  for (let i = firstCode; i <= lastCode; i++) {
+    symbols.push(String.fromCharCode(i));
+  }
+  return symbols;
 };
+
+const generateCharSet = (): string[] => {
+  const charSet: string[] = [];
+  charSet.push(...genCharArray("a", "z"));
+  charSet.push(...genCharArray("A", "Z"));
+  charSet.push(...genCharArray("0", "9"));
+  return charSet;
+};
+
+hash.configure({ charSet: generateCharSet(), maxLength: 8 });
+
+const generateHash = (input: string): string => hash.digest(input);
 
 const anonymize = (customer: ICustomer): ICustomer => {
   return {
-    firstName: generateRandomString(),
-    lastName: generateRandomString(),
+    firstName: generateHash(customer.firstName),
+    lastName: generateHash(customer.lastName),
     email: anonymizeEmail(customer.email),
     address: {
-      line1: generateRandomString(),
-      line2: generateRandomString(),
-      postcode: generateRandomString(),
+      line1: generateHash(customer.address.line1),
+      line2: generateHash(customer.address.line2),
+      postcode: generateHash(customer.address.postcode),
       city: customer.address.city,
       country: customer.address.country,
       state: customer.address.state,
@@ -38,8 +55,8 @@ const anonymize = (customer: ICustomer): ICustomer => {
 };
 
 const anonymizeEmail = (email: string): string => {
-  const domain = email.split("@").pop();
-  return [generateRandomString(), domain].join("@");
+  const [before, domain] = email.split("@");
+  return [generateHash(before), domain].join("@");
 };
 
 type UpdateOneOperation<T extends Document = Document> = {
