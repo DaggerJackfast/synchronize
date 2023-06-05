@@ -1,7 +1,7 @@
 import { Collection, MongoClient } from "mongodb";
 import * as dotenv from "dotenv";
 import { faker } from "@faker-js/faker";
-import { ICustomer } from "./types";
+import { ICustomer, CanBeUndefined } from "./types";
 
 const getRandomElement = <T>(list: T[]): T => {
   const index = Math.floor(Math.random() * list.length);
@@ -26,7 +26,7 @@ class CustomersGenerator {
   private readonly saveIntervalTime: number = 200;
   private readonly client: MongoClient;
   private readonly customersCollection: Collection<ICustomer>;
-  private timer: NodeJS.Timer | number | null = null;
+  private timer: CanBeUndefined<NodeJS.Timer | number> = undefined;
 
   constructor(client: MongoClient) {
     this.client = client;
@@ -54,7 +54,7 @@ class CustomersGenerator {
   private stopPeriodicGenerate(): void {
     if (this.timer) {
       clearInterval(this.timer);
-      this.timer = null;
+      this.timer = undefined;
     }
   }
 
