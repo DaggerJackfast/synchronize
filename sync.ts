@@ -7,12 +7,15 @@ import {
   Document,
   FindCursor,
   UpdateOneModel,
+  ResumeToken,
 } from "mongodb";
 import {
   CustomerChangeStreamEvent,
   CustomersChangeWatchStream,
   ICustomer,
   ICustomerDocument,
+  IResumeToken,
+  CanBeUndefined,
 } from "./types";
 
 const genCharArray = (firstSymbol: string, lastSymbol: string): string[] => {
@@ -69,9 +72,11 @@ class CustomersAnonymizer {
   private readonly saveIntervalTime: number = 1000;
   private readonly client: MongoClient;
   private customerDocuments: ICustomerDocument[] = [];
-  private timer: number | NodeJS.Timer | null = null;
+  private timer: CanBeUndefined<number | NodeJS.Timer> = undefined;
+  private resumeToken: CanBeUndefined<ResumeToken> = undefined;
   private readonly anonymisedCollection: Collection<ICustomerDocument>;
   private readonly customersCollection: Collection<ICustomerDocument>;
+  private readonly resumeTokenCollection: Collection<IResumeToken>;
 
   constructor(client: MongoClient) {
     this.client = client;
@@ -81,6 +86,9 @@ class CustomersAnonymizer {
     this.customersCollection = this.client
       .db("synchronize")
       .collection<ICustomerDocument>("customers");
+    this.resumeTokenCollection = this.client
+      .db("synchronize")
+      .collection<IResumeToken>("customers_resume_token");
   }
 
   public async start(fullReindex?: boolean): Promise<void> {
@@ -88,8 +96,8 @@ class CustomersAnonymizer {
       await this.fullReindex();
       process.exit(0);
     }
+    await this.loadSavedResumeToken();
     await this.watch();
-    this.savePreviousCustomers();
   }
 
   private async fullReindex(): Promise<void> {
@@ -98,21 +106,27 @@ class CustomersAnonymizer {
     await this.saveWithCursor(customerCursor);
   }
 
-  private async savePreviousCustomers(): Promise<void> {
-    const last = await this.anonymisedCollection
-      .find(
-        {},
-        { sort: [["createdAt", -1]], projection: { createdAt: 1 }, limit: 1 }
-      )
-      .next();
-    if (!last) {
+  private async loadSavedResumeToken(): Promise<void> {
+    const resume = await this.resumeTokenCollection.findOne(
+      { id: "resumeToken" },
+      { projection: { resumeToken: 1 }, limit: 1 }
+    );
+    if (!resume) {
       return;
     }
-    const { createdAt } = last;
-    const customerCursor = await this.customersCollection.find({
-      createdAt: { $gte: createdAt },
-    });
-    await this.saveWithCursor(customerCursor);
+    this.resumeToken = resume.resumeToken;
+  }
+
+  private async saveResumeToken(): Promise<void> {
+    if (!this.resumeToken) {
+      return;
+    }
+    const resumeToken = this.resumeToken;
+    await this.resumeTokenCollection.updateOne(
+      { where: { id: "resumeToken" } },
+      { $set: { id: "resumeToken", resumeToken } },
+      { upsert: true }
+    );
   }
 
   private async saveWithCursor(
@@ -145,6 +159,7 @@ class CustomersAnonymizer {
       const changeStream: CustomersChangeWatchStream =
         this.customersCollection.watch(pipeline, {
           fullDocument: "updateLookup",
+          resumeAfter: this.resumeToken,
         });
 
       changeStream.on("change", (event: CustomerChangeStreamEvent): void => {
@@ -153,8 +168,10 @@ class CustomersAnonymizer {
           return;
         }
         const document: ICustomerDocument = event.fullDocument;
+        this.resumeToken = event._id as string;
         this.customerDocuments.push(document);
         if (this.customerDocuments.length >= this.batchCount) {
+          this.saveResumeToken();
           const customers = this.customerDocuments;
           this.customerDocuments = [];
           this.save(customers);
@@ -169,6 +186,7 @@ class CustomersAnonymizer {
 
   private startIntervalSave(): void {
     this.timer = setInterval(() => {
+      this.saveResumeToken();
       const customers = this.customerDocuments;
       this.save(customers);
       this.customerDocuments = [];
@@ -178,7 +196,7 @@ class CustomersAnonymizer {
   private stopIntervalSave(): void {
     if (this.timer) {
       clearInterval(this.timer);
-      this.timer = null;
+      this.timer = undefined;
     }
   }
 
