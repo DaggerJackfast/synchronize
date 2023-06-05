@@ -3,6 +3,7 @@ import {
   ChangeStreamInsertDocument,
   ChangeStreamUpdateDocument,
   ObjectId,
+  ResumeToken,
 } from "mongodb";
 
 export interface IAddress {
@@ -25,6 +26,13 @@ export interface ICustomer {
 export interface ICustomerDocument extends ICustomer {
   _id: ObjectId | string;
 }
+
+export interface IResumeToken {
+  id: "resumeToken";
+  resumeToken: ResumeToken;
+}
+
+export type CanBeUndefined<T> = undefined | T;
 
 export type CustomersChangeWatchStream = ChangeStream<
   ICustomerDocument,
